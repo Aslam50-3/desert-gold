@@ -180,8 +180,9 @@ Socket 事件：`game:refresh`、`dayStart`、`phase`、`dayEnd`、`report`、`e
 
 ## 9. 托管：Cloudflare Workers + Durable Objects（$0，主机关掉也能玩）
 
-仓库根目录的 `wrangler.jsonc` + `cf/` 是 Cloudflare 版实现，和 Express 版**共用同一套规则引擎**（`src/engine/*` 原样复用，14 项单测不受影响）。Cloudflare 会从仓库自动构建部署，别人打开分配的 `*.workers.dev` 网址即可登录开玩，不依赖你的电脑。
+仓库根目录的 `wrangler.jsonc` + `cf/` 是 Cloudflare 版实现，和 Express 版**共用同一套规则引擎**（`src/engine/*` 原样复用，14 项单测不受影响）。Cloudflare 会从仓库自动构建部署，别人打开网址即可登录开玩，不依赖你的电脑。
 
+- **线上地址**：<https://tuzb0413.eu.cc>（已绑定自定义域名；`desert-gold.1747426385.workers.dev` 在国内网络常被直接重置，用自定义域更稳）。
 - **入口**：`cf/worker.js`（路由 + 静态页映射），`cf/game.js`（Durable Object：状态机、SQLite 存储、WebSocket 广播、WebCrypto 鉴权）。
 - **一场沙盘 = 一个 Durable Object**，状态存在 `ctx.storage.sql`，免费版可用（SQLite 后端）。倒计时用 DO alarm + 请求懒推进，不做每秒轮询，省请求额度。
 - **实时层**：DO 原生 WebSocket 替代 Socket.IO，前端 `public/js/api.js` 在检测不到 `window.io` 时自动回落，事件名与 Express 版一致。
@@ -193,6 +194,12 @@ Socket 事件：`game:refresh`、`dayStart`、`phase`、`dayEnd`、`report`、`e
 2. 项目名 `desert-gold`；构建命令 **`npm ci`**；部署命令 **`npx wrangler deploy`**；预览命令留空、预览构建关掉即可。
 3. 点「部署」。构建日志里应看到 `wrangler deploy` 上传 `desert-gold`，并完成 Durable Object 迁移 `v1`。
 4. 打开 `https://desert-gold.<你的子域>.workers.dev`。
+
+之后每次 `git push` 到 `main`，Cloudflare 会自动重新构建部署，不用再点按钮。
+
+### 绑定自己的域名
+
+Worker → 生产 → **域** → 添加域名 → 输入 `tuzb0413.eu.cc`（子域名留空表示根域）→ 添加。Cloudflare 会自动写一条 `Worker` 类型的 DNS 记录并签发证书，通常几分钟内生效。证书没就绪时浏览器会提示 SSL 失败，等一会儿刷新即可。
 
 ### 账号
 

@@ -1,5 +1,7 @@
 # 托管说明：GitHub、Cloudflare 与「关掉电脑还能玩」
 
+> **2026-11 更新：Cloudflare 版已经落地。** 仓库里的 `cf/` + `wrangler.jsonc` 是 Workers + Durable Objects 原生实现，免费版可用，已部署在 <https://tuzb0413.eu.cc>。下面「方案 C」的描述是当时的调研记录，实际实现见 README 第 9 节。
+
 这份文档解释一个容易被 Cloudflare 宣传页误导的问题：**这个项目不是静态网站，Cloudflare Pages 连上仓库后能打开页面，但登录、采购、结算、地图同步全都会失效。**
 
 原因很直接：
