@@ -876,7 +876,10 @@ export class GameRoom {
           if (s.phase !== 'ACTION' && s.phase !== 'SETTLING') return fail(409, '当前不在行动阶段');
           this.settleCurrentDay();
         }
-        if (action === 'end') this.finish();
+        if (action === 'end') {
+          if (s.status === 'DRAFT' || s.status === 'ENDED') return fail(409, '当前没有进行中的沙盘，先开营再结束');
+          this.finish();
+        }
         if (action === 'reset') this.resetSession();
         if (action === 'skip') {
           s.phase_ends_at = new Date(Date.now() - 10).toISOString();
