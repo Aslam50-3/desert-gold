@@ -1,0 +1,9 @@
+node_modules
+data
+shots
+backups
+.git
+.qa
+*.log
+*.png
+.env

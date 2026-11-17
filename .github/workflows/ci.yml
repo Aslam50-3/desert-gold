@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/engine.test.js
+      - name: 启动冒烟测试
+        run: |
+          npm start &
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:3000/healthz > /dev/null; then echo "healthz ok"; exit 0; fi
+            sleep 1
+          done
+          echo "服务未在 30 秒内启动" && exit 1

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>沙漠掘金 · 沙盘</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0906'/%3E%3Cpath d='M4 24h24' stroke='%23E7B15C' stroke-width='1.5'/%3E%3Cpath d='M7 24l6-13 4 8 3-4 5 9z' fill='none' stroke='%23E7B15C' stroke-width='1.5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/css/theme.css">
+</head>
+<body>
+<div class="login" id="login" data-mode="player">
+  <div class="login-art">
+    <canvas id="loginCanvas"></canvas>
+    <div class="veil"></div>
+    <div class="copy">
+      <div class="tag">DESERT GOLD · 沙盘模拟</div>
+      <h1>沙漠<br>掘金</h1>
+      <p class="sub">一片会吃人的沙，一座藏金的孤山。<br>二十五天之内，你必须带着金子活着回来。</p>
+      <div class="meta">
+        <div><b>25</b><span>DAYS LIMIT</span></div>
+        <div><b>38</b><span>GRID NODES</span></div>
+        <div><b>4</b><span>WEATHER TYPES</span></div>
+      </div>
+    </div>
+    <div class="foot">BEYOND DAY 25, THE DESERT KEEPS YOU.</div>
+  </div>
+
+  <div class="login-side">
+    <div class="login-card">
+      <div class="brandline">
+        <div class="sigil" style="width:44px;height:44px" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#E7B15C" stroke-width="1.6"><path d="M3 19h18"/><path d="M6 19V12l6-5 6 5v7"/><path d="M10 19v-5h4v5"/></svg>
+        </div>
+        <div>
+          <h2>进入沙盘</h2>
+          <p class="lede">管理员与队伍共用此入口，选择你的身份。</p>
+        </div>
+      </div>
+
+      <div class="login-tabs" role="tablist">
+        <button type="button" data-tab="player" class="on">队伍入口</button>
+        <button type="button" data-tab="admin">管理员入口</button>
+      </div>
+
+      <form id="loginForm" class="field" style="gap:14px" autocomplete="off">
+        <div class="field">
+          <label for="username">账号</label>
+          <input class="input" id="username" name="username" placeholder="队名账号 / 管理员账号" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="password">密码</label>
+          <input class="input" id="password" name="password" type="password" placeholder="••••••••" autocomplete="current-password" required>
+        </div>
+        <div class="login-err" id="loginErr"></div>
+        <button class="btn btn-primary btn-block btn-lg" id="loginBtn" type="submit">进入沙漠</button>
+      </form>
+
+      <div class="login-hint">
+        队伍账号由管理员创建；忘记密码请联系讲师重置。<br>
+        连续 5 次登录失败将锁定 5 分钟。
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/login.js"></script>
+</body>
+</html>

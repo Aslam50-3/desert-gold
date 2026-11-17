@@ -1,0 +1,25 @@
+{
+  "name": "desert-gold",
+  "version": "1.0.0",
+  "description": "沙漠掘金 · 多人实时网页沙盘",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "keywords": ["沙盘", "沙漠掘金", "培训", "game"],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.2.0",
+    "exceljs": "^4.4.0",
+    "express": "^5.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "socket.io": "^4.8.4"
+  }
+}

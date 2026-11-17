@@ -1,0 +1,14 @@
+# 依赖与运行时产物
+node_modules/
+data/
+backups/
+shots/
+.qa/
+*.log
+.env
+.env.local
+
+# 系统噪音
+.DS_Store
+Thumbs.db
+desktop.ini

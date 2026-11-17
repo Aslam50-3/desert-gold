@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>沙盘 · 沙漠掘金</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0906'/%3E%3Cpath d='M4 24h24' stroke='%23E7B15C' stroke-width='1.5'/%3E%3Cpath d='M7 24l6-13 4 8 3-4 5 9z' fill='none' stroke='%23E7B15C' stroke-width='1.5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/css/theme.css">
+</head>
+<body>
+
+<!-- ================= 候场 ================= -->
+<div class="lobby hidden" id="lobbyView">
+  <div class="lobby-head">
+    <div class="brand">
+      <div class="sigil"><svg viewBox="0 0 24 24" fill="none" stroke="#E7B15C" stroke-width="1.6"><path d="M3 19h18"/><path d="M6 19V12l6-5 6 5v7"/><path d="M10 19v-5h4v5"/></svg></div>
+      <div><b id="lobbyTitle">沙漠掘金</b><span>DESERT GOLD</span></div>
+    </div>
+    <button class="icon-btn" id="lobbyLogout" title="退出登录"></button>
+  </div>
+  <div class="lobby-main">
+    <div>
+      <div class="countdown-hero">
+        <div class="cd label">距开营</div>
+        <div class="cd" id="lobbyCountdown">--:--</div>
+        <div class="muted" id="lobbyPhase">等待管理员开营</div>
+      </div>
+      <div class="panel" style="margin-top:26px">
+        <div class="panel-head"><span class="micro">任务简报</span><span class="chip" id="lobbyDays">25 天</span></div>
+        <div class="panel-body" style="display:grid;gap:14px">
+          <p id="lobbyTask" style="margin:0;line-height:1.9;color:#d9cdb9"></p>
+          <div class="hairline"></div>
+          <div class="micro" id="lobbyGoal" style="letter-spacing:.1em;color:var(--muted);line-height:1.9"></div>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:18px">
+        <div class="panel-head"><span class="micro">沙盘规则</span><span class="dim" style="font-size:11px">由管理员配置</span></div>
+        <div class="rulebox" id="lobbyRules"></div>
+      </div>
+    </div>
+    <div style="display:grid;gap:18px;align-content:start">
+      <div class="teamcard">
+        <div class="micro">你的队伍</div>
+        <div class="nm" id="lobbyTeamName">—</div>
+        <div class="muted" id="lobbySlogan" style="min-height:20px"></div>
+        <div class="hairline" style="margin:14px 0"></div>
+        <div class="kv" id="lobbyTeamKv"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span class="micro">已入场的队伍</span><span class="num dim" id="lobbyTeamCount">0</span></div>
+        <div class="panel-body" id="lobbyTeams" style="display:grid;gap:8px;max-height:260px;overflow:auto"></div>
+      </div>
+      <button class="btn btn-primary btn-lg btn-block" id="lobbyRefresh" style="display:none">刷新状态</button>
+      <div class="muted" style="font-size:11.5px;line-height:1.8">开营后本页会自动进入沙盘。请保持网络连接，行动倒计时由服务器统一计时。</div>
+    </div>
+  </div>
+  <div style="padding:18px 0;border-top:1px solid var(--line);font-size:11px;letter-spacing:.18em;color:var(--dim)">DON'T BE THE ONE THE DESERT KEEPS.</div>
+</div>
+
+<!-- ================= 沙盘 ================= -->
+<div class="shell hidden" id="gameView">
+  <div class="topbar">
+    <div class="brand">
+      <div class="sigil"><svg viewBox="0 0 24 24" fill="none" stroke="#E7B15C" stroke-width="1.6"><path d="M3 19h18"/><path d="M6 19V12l6-5 6 5v7"/><path d="M10 19v-5h4v5"/></svg></div>
+      <div><b id="topTeam">—</b><span id="topSession">DESERT GOLD</span></div>
+    </div>
+    <div class="chip dot" id="topStatus">已连接</div>
+    <div class="spacer"></div>
+    <div class="daymark">
+      <div class="d num" id="topDay">0</div>
+      <div class="of">/ <span id="topTotal">25</span> DAY</div>
+    </div>
+    <button class="icon-btn" id="btnRules" title="沙盘规则"></button>
+    <button class="icon-btn" id="btnSound" title="音效"></button>
+    <button class="icon-btn" id="btnLogout" title="退出登录"></button>
+  </div>
+
+  <aside class="rail" id="rail"></aside>
+
+  <div class="mapwrap">
+    <canvas id="mapCanvas"></canvas>
+    <div class="map-hud">
+      <div class="loc" id="hudLoc">—</div>
+      <div class="loc" id="hudToday" style="display:none"></div>
+    </div>
+    <div class="map-hint">点击相邻格可直接设为移动目标</div>
+  </div>
+
+  <aside class="console">
+    <div class="clock">
+      <div class="ring" id="ring"><b id="clockText">--:--</b></div>
+      <div>
+        <div class="phase" id="phaseText">等待开营</div>
+        <div class="left" id="clockSub">服务器统一计时</div>
+      </div>
+    </div>
+    <div class="weather" id="weatherStrip"></div>
+    <div class="act" id="actPanel">
+      <section class="sect">
+        <div class="h"><span class="micro">今日行程</span><span class="chip" id="nodeChip">—</span></div>
+        <div class="movegrid" id="moveGrid"></div>
+      </section>
+      <section class="sect" id="supplySect">
+        <div class="h"><span class="micro">补给与动作</span><span class="dim" style="font-size:10.5px" id="supplyHint"></span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px" id="supplyBtns"></div>
+      </section>
+      <section class="sect" id="gearSect">
+        <div class="h"><span class="micro">装备</span><span class="dim" style="font-size:10.5px">帐篷 / 指南针 二选一</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px" id="gearBtns"></div>
+      </section>
+      <section class="sect" id="digSect" style="display:none">
+        <div class="summary-card" style="padding:12px 14px;gap:4px">
+          <div class="micro" style="color:var(--sand)">藏宝山 · 今日挖金</div>
+          <div class="num" style="font-size:22px">+1 块</div>
+          <div class="dim" style="font-size:11px">挖金占用载重，返程要留足水粮</div>
+        </div>
+      </section>
+      <section class="sect" id="intelMine" style="display:none">
+        <div class="h"><span class="micro">已握情报</span></div>
+        <div id="intelMineList" style="display:grid;gap:6px"></div>
+      </section>
+    </div>
+    <div class="submitbar">
+      <div class="meta"><span id="draftMeta">未选择移动</span><span id="weightMeta">载重 0 / 1000</span></div>
+      <button class="btn btn-primary btn-block" id="btnSubmit">提交行动</button>
+      <button class="btn btn-ghost btn-block btn-sm" id="btnRecall" style="display:none">撤回行动</button>
+    </div>
+  </aside>
+
+  <div class="ticker">
+    <div class="lbl">沙盘播报</div>
+    <div class="track"><div class="move" id="tickerMove"></div></div>
+  </div>
+</div>
+
+<!-- ================= 弹层 ================= -->
+<div class="overlay hidden" id="sheetWrap">
+  <div class="sheet" id="sheet"></div>
+</div>
+<div class="sandstorm" id="sandVeil"></div>
+<div class="death-veil hidden" id="deathVeil">
+  <div class="tomb-card">
+    <div class="stone">
+      <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#8b8378" stroke-width="1.6"><path d="M6 21V11a6 6 0 0 1 12 0v10"/><path d="M4 21h16"/><path d="M12 8v5M10 10.4h4"/></svg>
+    </div>
+    <h3 id="deathTitle">你没能走出这片沙</h3>
+    <div class="muted" id="deathSub"></div>
+    <button class="btn btn-ghost" id="deathClose">查看战报</button>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/map.js"></script>
+<script src="/js/play.js"></script>
+</body>
+</html>

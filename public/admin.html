@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>控制台 · 沙漠掘金</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0906'/%3E%3Cpath d='M4 24h24' stroke='%233FE0C8' stroke-width='1.5'/%3E%3Cpath d='M7 24l6-13 4 8 3-4 5 9z' fill='none' stroke='%233FE0C8' stroke-width='1.5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/css/theme.css">
+<style>
+  body { overflow: hidden; }
+  .adm { display: grid; grid-template-columns: 228px minmax(0, 1fr); height: 100vh; }
+  .adm-nav { border-right: 1px solid var(--line); padding: 18px 12px; display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, rgba(23,19,14,.7), rgba(8,7,6,.95)); }
+  .adm-nav .brand { padding: 4px 8px 18px; }
+  .adm-nav .brand b { display: block; white-space: nowrap; }
+  .adm-nav .brand span { white-space: nowrap; }
+  .navitem { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 9px; color: var(--muted); font-size: 13px; cursor: pointer; border: 1px solid transparent; background: none; font-family: inherit; text-align: left; }
+  .navitem:hover { color: var(--bone); background: rgba(255,240,214,.03); }
+  .navitem.on { color: var(--teal); border-color: rgba(63,224,200,.28); background: rgba(63,224,200,.06); }
+  .navitem svg { width: 17px; height: 17px; }
+  .adm-main { overflow: auto; padding: 22px 26px 60px; }
+  .adm-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 20px; }
+  .adm-head h2 { font-size: 26px; letter-spacing: -.01em; }
+  .grid { display: grid; gap: 16px; }
+  .g2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .g3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .g4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
+  .stat { padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(180deg, rgba(255,240,214,.03), transparent); }
+  .stat .k { font-size: 10px; letter-spacing: .18em; color: var(--muted); }
+  .stat .v { font-family: var(--font-mono); font-size: 24px; margin-top: 4px; }
+  .ctl { display: flex; flex-wrap: wrap; gap: 8px; }
+  .cfg-sec { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .cfg-sec > header { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; background: rgba(255,240,214,.02); }
+  .cfg-sec .body { padding: 16px; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  .cfg-sec .body.wide { grid-template-columns: 1fr; }
+  .num-input { font-family: var(--font-mono); }
+  .hint { font-size: 11px; color: var(--dim); line-height: 1.7; }
+  .matrix { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .matrix th { position: sticky; top: 0; background: #14110c; z-index: 2; font-size: 10px; letter-spacing: .1em; color: var(--muted); padding: 8px; text-align: left; border-bottom: 1px solid var(--line-strong); }
+  .matrix td { padding: 3px 5px; border-bottom: 1px solid rgba(231,177,92,.06); }
+  .matrix select { padding: 5px 8px; font-size: 11px; background: #0b0a08; border: 1px solid var(--line); border-radius: 6px; color: var(--bone); }
+  .maskscroll { max-height: 56vh; overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
+  .row-actions { display: flex; gap: 6px; justify-content: flex-end; }
+  .admin-map { height: 320px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; position: relative; }
+  .admin-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .drawer-close { display: none; }
+  .phasebar { height: 3px; background: linear-gradient(90deg, var(--teal), transparent); }
+  @media (max-width: 1100px) {
+    .g3, .g4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  }
+  @media (max-width: 820px) {
+    .adm { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .adm-nav { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px; }
+    .adm-nav .brand { display: none; }
+    .adm-main { padding: 16px; }
+    .g2, .g3, .g4 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="adm">
+  <aside class="adm-nav" id="nav">
+    <div class="brand">
+      <div class="sigil"><svg viewBox="0 0 24 24" fill="none" stroke="#3FE0C8" stroke-width="1.6"><path d="M3 19h18"/><path d="M6 19V12l6-5 6 5v7"/><path d="M10 19v-5h4v5"/></svg></div>
+      <b style="font-size:14px;letter-spacing:.1em">控制台</b>
+      <span style="display:block;font-size:9px;letter-spacing:.28em;color:var(--muted)">DESERT GOLD</span>
+    </div>
+  </aside>
+  <main class="adm-main" id="main"></main>
+</div>
+<div class="toasts"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/map.js"></script>
+<script src="/js/admin.js"></script>
+</body>
+</html>
