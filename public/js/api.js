@@ -121,18 +121,68 @@
   }
 
   function connectSocket(on) {
-    if (typeof io !== 'function') return null;
-    const socket = io({ withCredentials: true });
-    socket.on('connect', () => on && on('connect', socket));
-    socket.on('disconnect', () => on && on('disconnect'));
-    socket.on('game:toast', (p) => toast(p.text, p.level || 'info'));
-    socket.on('game:refresh', () => on && on('refresh'));
-    socket.on('game:dayStart', (p) => on && on('dayStart', p));
-    socket.on('game:phase', (p) => on && on('phase', p));
-    socket.on('game:dayEnd', (p) => on && on('dayEnd', p));
-    socket.on('team:report', (p) => on && on('report', p));
-    socket.on('game:ended', (p) => on && on('ended', p));
-    return socket;
+    if (typeof io === 'function') {
+      const socket = io({ withCredentials: true });
+      socket.on('connect', () => on && on('connect', socket));
+      socket.on('disconnect', () => on && on('disconnect'));
+      socket.on('game:toast', (p) => toast(p.text, p.level || 'info'));
+      socket.on('game:refresh', () => on && on('refresh'));
+      socket.on('game:dayStart', (p) => on && on('dayStart', p));
+      socket.on('game:phase', (p) => on && on('phase', p));
+      socket.on('game:dayEnd', (p) => on && on('dayEnd', p));
+      socket.on('team:report', (p) => on && on('report', p));
+      socket.on('game:ended', (p) => on && on('ended', p));
+      return socket;
+    }
+    // Cloudflare 版：没有 Socket.IO，用 DO 原生 WebSocket，事件名保持一致
+    const handlers = {};
+    const api = {
+      connected: false,
+      on(event, fn) {
+        (handlers[event] = handlers[event] || []).push(fn);
+        return api;
+      },
+      close() {
+        stopped = true;
+        try { if (ws) ws.close(); } catch (e) { /* noop */ }
+      },
+    };
+    let ws = null;
+    let stopped = false;
+    let retry = null;
+    const emit = (event, payload) => (handlers[event] || []).forEach((fn) => fn(payload));
+    api.on('game:toast', (p) => toast(p.text, p.level || 'info'));
+    api.on('game:refresh', () => on && on('refresh'));
+    api.on('game:dayStart', (p) => on && on('dayStart', p));
+    api.on('game:phase', (p) => on && on('phase', p));
+    api.on('game:dayEnd', (p) => on && on('dayEnd', p));
+    api.on('team:report', (p) => on && on('report', p));
+    api.on('game:ended', (p) => on && on('ended', p));
+
+    const open = () => {
+      if (stopped) return;
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${proto}//${location.host}/ws`);
+      ws.onopen = () => {
+        api.connected = true;
+        emit('connect');
+        on && on('connect', api);
+      };
+      ws.onclose = () => {
+        api.connected = false;
+        on && on('disconnect');
+        if (!stopped) retry = setTimeout(open, 3000);
+      };
+      ws.onerror = () => { /* 断线由 onclose 统一重连 */ };
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg && msg.event) emit(msg.event, msg.payload || {});
+        } catch (e) { /* 忽略非 JSON 帧 */ }
+      };
+    };
+    open();
+    return api;
   }
 
   function escapeHtml(s) {

@@ -178,8 +178,40 @@ Socket 事件：`game:refresh`、`dayStart`、`phase`、`dayEnd`、`report`、`e
 
 见 [`docs/操作手册.md`](docs/操作手册.md)：开营前检查清单、主持节奏、突发处理（掉线/超时/判死误操作/换地图）、收尾导出与颁奖。
 
-## 9. 托管到 GitHub / Cloudflare
+## 9. 托管：Cloudflare Workers + Durable Objects（$0，主机关掉也能玩）
 
-见 [`docs/托管与Cloudflare.md`](docs/托管与Cloudflare.md)。一句话：**Cloudflare Pages 只能托管静态文件，接上仓库也跑不了登录和结算**，因为本项目需要常驻进程、本地 SQLite 和 Socket.IO。文档里给了三条能真正跑起来的路线（云主机零改动 / Cloudflare Containers beta / Workers+Durable Objects 原生重写）以及各自的成本与代价。
+仓库根目录的 `wrangler.jsonc` + `cf/` 是 Cloudflare 版实现，和 Express 版**共用同一套规则引擎**（`src/engine/*` 原样复用，14 项单测不受影响）。Cloudflare 会从仓库自动构建部署，别人打开分配的 `*.workers.dev` 网址即可登录开玩，不依赖你的电脑。
+
+- **入口**：`cf/worker.js`（路由 + 静态页映射），`cf/game.js`（Durable Object：状态机、SQLite 存储、WebSocket 广播、WebCrypto 鉴权）。
+- **一场沙盘 = 一个 Durable Object**，状态存在 `ctx.storage.sql`，免费版可用（SQLite 后端）。倒计时用 DO alarm + 请求懒推进，不做每秒轮询，省请求额度。
+- **实时层**：DO 原生 WebSocket 替代 Socket.IO，前端 `public/js/api.js` 在检测不到 `window.io` 时自动回落，事件名与 Express 版一致。
+- **免费额度**（2026 年现行）：Workers 约 10 万请求/天，DO SQL 存储 5GB，无需绑卡。
+
+### 在 Cloudflare 控制台接仓库
+
+1. Workers & Pages → 创建 → 连接到 Git → 选 `Aslam50-3/desert-gold`。
+2. 项目名 `desert-gold`；构建命令 **`npm ci`**；部署命令 **`npx wrangler deploy`**；预览命令留空、预览构建关掉即可。
+3. 点「部署」。构建日志里应看到 `wrangler deploy` 上传 `desert-gold`，并完成 Durable Object 迁移 `v1`。
+4. 打开 `https://desert-gold.<你的子域>.workers.dev`。
+
+### 账号
+
+| 角色 | 账号 | 口令 |
+| --- | --- | --- |
+| 管理员 | `A` | `Aa0123456789` |
+| 队伍（8 支） | `team01` … `team08` | `desert888` |
+
+登录后可改密码；管理员口令也可在 Cloudflare 项目的 Variables 里改 `ADMIN_PASS`（注意：已在库里初始化的账号不会自动改密，需在后台「账号安全」重置，或新开一个 DO 实例）。
+
+### Cloudflare 版与 Express 版的行为差异
+
+- 后台「报表导出」在免费版返回 **CSV**（不引入 ExcelJS，避免超出 CPU 限制）。
+- 只有一场沙盘（DO 名 `main`）；「重置本局（保留队伍）」可用，多局归档留给付费版/自托管。
+- 未做每账号在线人数精确统计以外的会话管理；WebSocket 断开后前端 3 秒自动重连。
+- 本机验证方式：`npx wrangler dev --port 8788`，已跑通登录、开营、提交、结算、日报、25 天终局、评分、队伍增删、参数/天气修改、WebSocket 广播与页面渲染。
+
+### 其它路线
+
+`docs/托管与Cloudflare.md` 保留了对比：Cloudflare Pages 只能静态托管（登录/结算跑不了）；Containers 是公开 beta 且按量计费；Oracle/GCP 免费 VM 需绑卡。要「别人点开就能玩 + 不花钱」，当前这条 Workers + DO 路线是成本最低且已验证可跑的。
 
 仓库自带 `.github/workflows/ci.yml`：每次 push 自动安装依赖、跑 14 项规则单测、启动服务并探活 `/healthz`。

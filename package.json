@@ -6,9 +6,16 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "cf:dev": "wrangler dev",
+    "cf:deploy": "wrangler deploy"
   },
-  "keywords": ["沙盘", "沙漠掘金", "培训", "game"],
+  "keywords": [
+    "沙盘",
+    "沙漠掘金",
+    "培训",
+    "game"
+  ],
   "author": "",
   "license": "ISC",
   "engines": {
@@ -21,5 +28,8 @@
     "express": "^5.3.0",
     "jsonwebtoken": "^9.0.3",
     "socket.io": "^4.8.4"
+  },
+  "devDependencies": {
+    "wrangler": "^4.164.0"
   }
 }

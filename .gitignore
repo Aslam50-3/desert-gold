@@ -12,3 +12,7 @@ shots/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Cloudflare 本地状态
+.wrangler/
+.dev.vars
