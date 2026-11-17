@@ -6,7 +6,8 @@
   const form = document.getElementById('loginForm');
   const errEl = document.getElementById('loginErr');
   const btn = document.getElementById('loginBtn');
-  let mode = 'player';
+  const roleParam = new URLSearchParams(location.search).get('role');
+  let mode = roleParam === 'admin' ? 'admin' : 'player';
   let W = 0;
   let H = 0;
   const parts = [];
@@ -134,15 +135,18 @@
   resize();
   requestAnimationFrame(frame);
 
+  function setMode(next) {
+    mode = next;
+    loginEl.dataset.mode = mode;
+    document.querySelectorAll('.login-tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === mode));
+    document.getElementById('username').placeholder = mode === 'admin' ? '管理员账号' : '队名账号，如 team01';
+    errEl.textContent = '';
+  }
+
   document.querySelectorAll('.login-tabs button').forEach((b) => {
-    b.addEventListener('click', () => {
-      mode = b.dataset.tab;
-      loginEl.dataset.mode = mode;
-      document.querySelectorAll('.login-tabs button').forEach((x) => x.classList.toggle('on', x === b));
-      document.getElementById('username').placeholder = mode === 'admin' ? '管理员账号' : '队名账号，如 team01';
-      errEl.textContent = '';
-    });
+    b.addEventListener('click', () => setMode(b.dataset.tab));
   });
+  setMode(mode);
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -172,7 +176,13 @@
   });
 
   DG.api('/api/auth/me').then((r) => {
-    if (!r.user) return;
-    location.href = r.user.role === 'ADMIN' ? '/admin' : '/play';
+    const q = new URLSearchParams(location.search).get('role');
+    const isAdmin = r.admin || (r.user && r.user.role === 'ADMIN');
+    const isTeam = r.team || (r.user && r.user.role === 'PLAYER');
+    if (q === 'admin') { if (isAdmin) location.href = '/admin'; return; }
+    if (q === 'team') { if (isTeam) location.href = '/play'; return; }
+    // 经理与队伍各用一枚 Cookie：只有一个身份时直接进对应界面，两个都在时留在选择页。
+    if (isAdmin && !isTeam) location.href = '/admin';
+    else if (isTeam && !isAdmin) location.href = '/play';
   }).catch(() => {});
 })();

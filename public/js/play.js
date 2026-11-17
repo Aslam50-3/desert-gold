@@ -53,7 +53,7 @@
       const s = await DG.api('/api/player/state');
       applyState(s, silent);
     } catch (err) {
-      if (err.status === 401 || err.status === 403) location.href = '/';
+      if (err.status === 401 || err.status === 403) location.href = '/?role=team';
       else if (!silent) DG.toast(err.message, 'warn');
     }
   }
@@ -727,8 +727,8 @@
   /* ---------------- 视图切换 ---------------- */
 
   el('btnRules').addEventListener('click', openRules);
-  el('btnLogout').addEventListener('click', async () => { await DG.api('/api/auth/logout', { method: 'POST' }); location.href = '/'; });
-  el('lobbyLogout').addEventListener('click', async () => { await DG.api('/api/auth/logout', { method: 'POST' }); location.href = '/'; });
+  el('btnLogout').addEventListener('click', async () => { await DG.api('/api/auth/logout', { method: 'POST', body: JSON.stringify({ role: 'player' }) }); location.href = '/?role=team'; });
+  el('lobbyLogout').addEventListener('click', async () => { await DG.api('/api/auth/logout', { method: 'POST', body: JSON.stringify({ role: 'player' }) }); location.href = '/?role=team'; });
   el('btnSound').addEventListener('click', () => {
     S.sound = !S.sound;
     localStorage.setItem('dg_sound', S.sound ? 'on' : 'off');
@@ -745,7 +745,8 @@
   async function boot() {
     try {
       const me = await DG.api('/api/auth/me');
-      if (!me.user || me.user.role !== 'PLAYER') { location.href = '/'; return; }
+      const isTeam = me.team || (me.user && me.user.role === 'PLAYER');
+      if (!isTeam) { location.href = '/?role=team'; return; }
       S.socket = DG.connectSocket((evt, payload) => {
         if (evt === 'connect') { loadState(true); }
         if (evt === 'disconnect') { if (S.state) renderGame(S.state); }

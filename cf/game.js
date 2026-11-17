@@ -647,15 +647,22 @@ export class GameRoom {
 
   /* ---------- 鉴权 ---------- */
 
-  async userFromRequest(req) {
+  // 管理员与队伍各用一枚 Cookie，同一个浏览器里可以由两个标签页分别登录，互不顶号。
+  async userFromRequest(req, kind) {
     const cookie = req.headers.get('cookie') || '';
-    const m = cookie.match(/dg_token=([^;]+)/);
-    if (!m) return null;
-    const payload = await verifyToken(decodeURIComponent(m[1]), this.jwtSecret);
-    if (!payload) return null;
-    const user = this.one('SELECT * FROM users WHERE id=?', payload.uid);
-    if (!user || !user.active) return null;
-    return user;
+    const names = kind === 'admin' ? ['dg_admin'] : kind === 'team' ? ['dg_team'] : ['dg_admin', 'dg_team'];
+    for (const name of names) {
+      const m = cookie.match(new RegExp(`${name}=([^;]+)`));
+      if (!m) continue;
+      const payload = await verifyToken(decodeURIComponent(m[1]), this.jwtSecret);
+      if (!payload) continue;
+      const user = this.one('SELECT * FROM users WHERE id=?', payload.uid);
+      if (!user || !user.active) continue;
+      if (kind === 'admin' && user.role !== 'ADMIN') continue;
+      if (kind === 'team' && (user.role !== 'PLAYER' || !user.team_id)) continue;
+      return user;
+    }
+    return null;
   }
 
   /* ---------- 路由 ---------- */
@@ -681,7 +688,8 @@ export class GameRoom {
     let body = null;
     if (method !== 'GET' && method !== 'HEAD') body = await request.json().catch(() => null);
 
-    const user = await this.userFromRequest(request);
+    const adminUser = await this.userFromRequest(request, 'admin');
+    const teamUser = await this.userFromRequest(request, 'team');
 
     if (path === '/api/auth/login' && method === 'POST') {
       const { username, password, mode } = body || {};
@@ -692,57 +700,70 @@ export class GameRoom {
       if (mode === 'admin' && row.role !== 'ADMIN') return fail(403, '这不是管理员账号');
       if (mode === 'player' && row.role !== 'PLAYER') return fail(403, '这不是队伍账号');
       const token = await signToken({ uid: row.id, username: row.username, role: row.role, teamId: row.team_id, exp: Date.now() + 7 * 86400000 }, this.jwtSecret);
+      const cookieName = row.role === 'ADMIN' ? 'dg_admin' : 'dg_team';
       return json({ ok: true, role: row.role, username: row.username, mustChange: Boolean(row.must_change) }, 200, {
-        'set-cookie': `dg_token=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 86400}`,
+        'set-cookie': `${cookieName}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 86400}`,
       });
     }
 
     if (path === '/api/auth/logout' && method === 'POST') {
-      return json({ ok: true }, 200, { 'set-cookie': 'dg_token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0' });
+      // 只退出自己这一侧，另一个身份的标签页不受影响；不带 role 时两边都退。
+      const want = (body || {}).role || (new URL(request.url)).searchParams.get('role');
+      const names = want === 'admin' ? ['dg_admin'] : want === 'player' || want === 'team' ? ['dg_team'] : ['dg_admin', 'dg_team'];
+      const headers = new Headers({ 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      for (const name of names) headers.append('set-cookie', `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
     }
 
     if (path === '/api/auth/me' && method === 'GET') {
-      if (!user) return json({ user: null });
-      const team = user.team_id ? this.getTeam(user.team_id) : null;
-      return json({ user: { id: user.id, username: user.username, role: user.role, mustChange: Boolean(user.must_change), team: team ? { id: team.id, name: team.name, color: team.color } : null } });
+      const shape = (u) => {
+        if (!u) return null;
+        const team = u.team_id ? this.getTeam(u.team_id) : null;
+        return {
+          id: u.id, username: u.username, role: u.role, mustChange: Boolean(u.must_change),
+          team: team ? { id: team.id, name: team.name, color: team.color } : null,
+        };
+      };
+      return json({ admin: shape(adminUser), team: shape(teamUser), user: shape(adminUser || teamUser) });
     }
 
     if (path === '/api/auth/password' && method === 'POST') {
-      if (!user) return fail(401, '请先登录');
+      const pwUser = adminUser || teamUser;
+      if (!pwUser) return fail(401, '请先登录');
       const pw = String((body || {}).password || '');
       const err = pw.length < 8 ? '密码至少 8 位' : (pw.length > 64 ? '密码太长' : null);
       if (err) return fail(422, err);
-      this.sql.exec('UPDATE users SET hash=?, must_change=0 WHERE id=?', await hashPassword(pw), user.id);
+      this.sql.exec('UPDATE users SET hash=?, must_change=0 WHERE id=?', await hashPassword(pw), pwUser.id);
       return json({ ok: true });
     }
 
     /* 玩家端 */
     if (path === '/api/player/state' && method === 'GET') {
-      if (!user || user.role !== 'PLAYER' || !user.team_id) return fail(401, '请用队伍账号登录');
-      const team = this.getTeam(user.team_id);
+      if (!teamUser) return fail(401, '请用队伍账号登录');
+      const team = this.getTeam(teamUser.team_id);
       if (!team) return fail(404, '队伍不存在');
       return json(this.playerState(team));
     }
 
     if (path === '/api/player/action' && method === 'POST') {
-      if (!user || user.role !== 'PLAYER' || !user.team_id) return fail(401, '请用队伍账号登录');
+      if (!teamUser) return fail(401, '请用队伍账号登录');
       const { action, clientActionId } = body || {};
       if (!clientActionId) return fail(422, '缺少 clientActionId');
-      const result = this.submitAction(user.team_id, action, clientActionId);
+      const result = this.submitAction(teamUser.team_id, action, clientActionId);
       if (!result.ok) return fail(result.status || 400, result.error, { errors: result.errors });
       return json(result);
     }
 
     if (path === '/api/player/action' && method === 'DELETE') {
-      if (!user || user.role !== 'PLAYER' || !user.team_id) return fail(401, '请用队伍账号登录');
-      const result = this.recallAction(user.team_id);
+      if (!teamUser) return fail(401, '请用队伍账号登录');
+      const result = this.recallAction(teamUser.team_id);
       if (!result.ok) return fail(409, result.error);
       return json(result);
     }
 
     if (path === '/api/player/reports' && method === 'GET') {
-      if (!user || user.role !== 'PLAYER' || !user.team_id) return fail(401, '请用队伍账号登录');
-      const rows = this.all('SELECT day, data FROM reports WHERE team_id=? ORDER BY day ASC', user.team_id);
+      if (!teamUser) return fail(401, '请用队伍账号登录');
+      const rows = this.all('SELECT day, data FROM reports WHERE team_id=? ORDER BY day ASC', teamUser.team_id);
       return json({ reports: rows.map((r) => JSON.parse(r.data)) });
     }
 
@@ -766,7 +787,7 @@ export class GameRoom {
 
     /* 管理端 */
     if (path.startsWith('/api/admin/')) {
-      if (!user || user.role !== 'ADMIN') return fail(401, '请用管理员账号登录');
+      if (!adminUser) return fail(401, '请用管理员账号登录');
       const s = this.getSession();
       if (!s) return fail(404, '还没有沙盘任务');
 
@@ -862,7 +883,7 @@ export class GameRoom {
           this.saveSession(s);
           this.advance(s);
         }
-        this.audit(user.username, `session:${action}`, body);
+        this.audit(adminUser.username, `session:${action}`, body);
         this.broadcast('game:refresh', {});
         await this.schedule();
         return json({ ok: true });
@@ -881,7 +902,7 @@ export class GameRoom {
           rules: { ...s.config.rules, ...fresh.rules },
         });
         this.saveSession(s);
-        this.audit(user.username, 'config:preset', { preset: presetId });
+        this.audit(adminUser.username, 'config:preset', { preset: presetId });
         this.broadcast('game:refresh', {});
         return json({ ok: true, config: s.config });
       }
@@ -903,7 +924,7 @@ export class GameRoom {
         this.insertTeam(team, count);
         this.sql.exec('INSERT INTO users (id, username, hash, role, team_id, must_change, active) VALUES (?,?,?,?,?,0,1)',
           uid('u'), username, await hashPassword(password), 'PLAYER', team.id);
-        this.audit(user.username, 'team:create', { name, username });
+        this.audit(adminUser.username, 'team:create', { name, username });
         this.broadcast('game:refresh', {});
         return json({ ok: true, id: team.id });
       }
@@ -970,7 +991,7 @@ export class GameRoom {
             for (const k of ['water', 'food', 'cash', 'gold']) if (b[k] != null) team[k] = Number(b[k]);
           }
           this.saveTeam(team);
-          this.audit(user.username, `team:${b.action || 'update'}`, { id });
+          this.audit(adminUser.username, `team:${b.action || 'update'}`, { id });
           this.broadcast('game:refresh', {});
           return json({ ok: true });
         }

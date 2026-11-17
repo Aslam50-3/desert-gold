@@ -35,7 +35,7 @@
       document.querySelectorAll('.navitem').forEach((b) => b.classList.toggle('on', b.dataset.nav === S.tab));
       render();
     } catch (err) {
-      if (err.status === 401 || err.status === 403) location.href = '/';
+      if (err.status === 401 || err.status === 403) location.href = '/?role=admin';
       else DG.toast(err.message, 'warn');
     }
   }
@@ -746,7 +746,7 @@
     }
 
     if (e.target.closest('#btnScreenPage')) { window.open('/screen', '_blank'); return; }
-    if (e.target.closest('#btnLogout')) { await DG.api('/api/auth/logout', { method: 'POST' }); location.href = '/'; }
+    if (e.target.closest('#btnLogout')) { await DG.api('/api/auth/logout', { method: 'POST', body: JSON.stringify({ role: 'admin' }) }); location.href = '/?role=admin'; }
   });
 
   /* ---------------- 启动 ---------------- */
@@ -754,7 +754,8 @@
   async function boot() {
     try {
       const me = await DG.api('/api/auth/me');
-      if (!me.user || me.user.role !== 'ADMIN') { location.href = '/'; return; }
+      const isAdmin = me.admin || (me.user && me.user.role === 'ADMIN');
+      if (!isAdmin) { location.href = '/?role=admin'; return; }
       el('nav').innerHTML = navHtml();
       await load();
       S.socket = DG.connectSocket((evt) => {
@@ -763,7 +764,7 @@
       });
       S.socket.on('game:refresh', () => { if (S.tab === 'dash') load(); });
     } catch (err) {
-      location.href = '/';
+      location.href = '/?role=admin';
     }
     setInterval(() => { if (S.tab === 'dash' && !document.hidden) load(); }, 5000);
   }
