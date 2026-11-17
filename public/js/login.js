@@ -179,10 +179,13 @@
     const q = new URLSearchParams(location.search).get('role');
     const isAdmin = r.admin || (r.user && r.user.role === 'ADMIN');
     const isTeam = r.team || (r.user && r.user.role === 'PLAYER');
-    if (q === 'admin') { if (isAdmin) location.href = '/admin'; return; }
-    if (q === 'team') { if (isTeam) location.href = '/play'; return; }
-    // 经理与队伍各用一枚 Cookie：只有一个身份时直接进对应界面，两个都在时留在选择页。
-    if (isAdmin && !isTeam) location.href = '/admin';
-    else if (isTeam && !isAdmin) location.href = '/play';
+    // 只有显式指定身份时才自动放行；否则永远停在登录页，避免新标签页被管理员 Cookie 直接带走。
+    if (q === 'admin' && isAdmin) { location.href = '/admin'; return; }
+    if (q === 'team' && isTeam) { location.href = '/play'; return; }
+    const note = document.createElement('p');
+    note.style.cssText = 'margin:14px 0 0;font-size:12px;line-height:1.6;color:rgba(231,197,154,.72)';
+    if (isAdmin) note.append('本浏览器已登录管理员，可直接进入控制台；用队伍入口登录则会再叠加一个队伍身份。', document.createElement('br'), Object.assign(document.createElement('a'), { href: '/admin', textContent: '进入控制台 →' }));
+    if (isAdmin && isTeam) note.append(document.createElement('br'), Object.assign(document.createElement('a'), { href: '/play', textContent: '进入已登录的队伍沙盘 →' }));
+    if (note.childNodes.length) form.appendChild(note);
   }).catch(() => {});
 })();

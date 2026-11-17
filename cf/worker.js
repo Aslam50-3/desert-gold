@@ -7,6 +7,18 @@ import { GameRoom } from './game.js';
 
 export { GameRoom };
 
+// 页面与脚本一律走协商缓存：浏览器每次都会向边缘校验 ETag，避免旧版 JS 把新标签页带偏。
+async function serveAsset(request, env, target) {
+  const res = await env.ASSETS.fetch(new Request(target, { headers: request.headers }));
+  const type = res.headers.get('content-type') || '';
+  if (/text\/html|javascript|text\/css/.test(type)) {
+    const headers = new Headers(res.headers);
+    headers.set('cache-control', 'no-cache, must-revalidate');
+    return new Response(res.body, { status: res.status, headers });
+  }
+  return res;
+}
+
 const PAGES = {
   '/': '/index.html',
   '/login': '/index.html',
@@ -41,9 +53,9 @@ export default {
     }
 
     if (PAGES[path]) {
-      return env.ASSETS.fetch(new Request(new URL(PAGES[path], url), { headers: request.headers }));
+      return serveAsset(request, env, new URL(PAGES[path], url));
     }
 
-    return env.ASSETS.fetch(request);
+    return serveAsset(request, env, url);
   },
 };
