@@ -210,6 +210,8 @@ Worker → 生产 → **域** → 添加域名 → 输入 `tuzb0413.eu.cc`（子
 
 登录后可改密码；管理员口令也可在 Cloudflare 项目的 Variables 里改 `ADMIN_PASS`（注意：已在库里初始化的账号不会自动改密，需在后台「账号安全」重置，或新开一个 DO 实例）。
 
+**同一浏览器里同时开管理员和队伍**：管理员与队伍各用一枚 Cookie（`dg_admin` / `dg_team`），互不顶号。管理员标签打开 `/admin`，队伍标签打开 `/play`，两个标签可以一直保持登录；从登录页进入时用 `/?role=admin`、`/?role=team` 指定身份，退出也只退出自己那一侧。
+
 ### Cloudflare 版与 Express 版的行为差异
 
 - 后台「报表导出」在免费版返回 **CSV**（不引入 ExcelJS，避免超出 CPU 限制）。
